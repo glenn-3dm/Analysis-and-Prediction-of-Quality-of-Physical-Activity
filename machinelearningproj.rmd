@@ -1,0 +1,75 @@
+---
+title: "Machine Learning Project"
+author: "GI"
+date: "3/25/2021"
+output: html_document
+---
+
+## Analysis and Prediction of Quality of Physical Activity
+
+The purpose of this markdown is to train a model to predict the "classe" variable of a participants activity, while exploring cross validation, out of sample error, and machine learning.  
+
+## Uploading, Exploring, and Cleaning the Dataset
+
+```{r}
+# Install necessary library packages and set the seed for analysis
+library(caret)
+library(rpart)
+library(rpart.plot)
+set.seed(84)
+
+# Read data into RStudio, replacing blank cells with NA
+training <- read.csv('C:/RStudio/newproj/pml-training.csv',na.strings = c('','NA','#DIV/0!'))
+testing <- read.csv('C:/RStudio/newproj/pml-testing.csv',na.strings = c('','NA','#DIV/0!'))
+
+# Remove unnecessary data columns (participant name, participant number, timestamps, etc.)
+training <- training[,-c(1:7)]
+testing <- testing[,-c(1:7)]
+
+# Split training data set to create a test set to validate model
+cvsplit <- createDataPartition(training$classe,p = 0.7, list = FALSE)
+cvtraining <- training[cvsplit,]
+cvtesting <- training[-cvsplit,]
+
+# Remove columns in which all values are 0
+cvtraining <- cvtraining[,colSums(is.na(cvtraining)) == 0]
+cvtesting <- cvtesting[,colSums(is.na(cvtesting)) == 0]
+```
+
+## Plot Decision Tree
+
+```{r}
+# Create decision tree visualization 
+dec.tree <- rpart(classe ~ ., data = cvtraining, method = 'class')
+rpart.plot(dec.tree)
+```
+
+## Train Model to Use for Prediction
+
+The training subset was then put through k-fold cross validation to resample in groups of 10 before creating a model via random forest modeling methodology.
+
+```{r}
+# Create a model using the random forest method after cross validating using a 10x K-fold
+train.control <- trainControl(method = 'cv',10)
+model <- train(classe ~ ., data = cvtraining,method = 'rf', trControl = train.control)
+model
+```
+
+## Verify Model Efficacy
+
+Since the accuracy for the optimal model (mtry = 2) is 99+%, the model was then used to predict the classe values for the testing subset created from the original training set.  
+
+```{r}
+# Use model to predict test subset and check against actual values
+mod.pred <- predict(model,cvtesting)
+confusionMatrix(cvtesting$classe,mod.pred)
+
+# Calculate the accuracy of the predicting model
+accuracy <- postResample(mod.pred,cvtesting$classe)
+```
+
+## Conclusion
+
+The predictive model was shown to have an accuracy of `r accuracy[1]` when compared to the testing subset with an out of sample error of `r 1-accuracy[1]`.  
+
+
